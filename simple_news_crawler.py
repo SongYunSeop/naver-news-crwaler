@@ -118,17 +118,17 @@ class SNC():
                     flag = False
 
     def report_to_slack(self):
-        slack = Slacker('xoxb-79019096625-kbpRw3lBVr78I9tZk5mbgiF2')
+        slack = Slacker('<SLACK_TOKEN>')
         slack.chat.post_message('#general', '네이버 뉴스 크롤링')
         slack.chat.post_message('#general', '수집한 뉴스 갯수: '+str(len(self.news_data)))
 
     def report_to_slack2(self, today):
-        slack = Slacker('xoxb-79019096625-kbpRw3lBVr78I9tZk5mbgiF2')
+        slack = Slacker('<SLACK_TOKEN>')
         slack.chat.post_message('#general', '네이버 뉴스 크롤링: '+today)
         slack.chat.post_message('#general', '수집한 뉴스 갯수: '+str(len(self.news_data)))
 
     def fail_report(self):
-        slack = Slacker('xoxb-79019096625-kbpRw3lBVr78I9tZk5mbgiF2')
+        slack = Slacker('<SLACK_TOKEN>')
         slack.chat.post_message('#general', '실패다 헤헤')
 
     def content_save(self):
