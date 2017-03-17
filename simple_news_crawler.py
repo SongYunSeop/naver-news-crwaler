@@ -7,6 +7,11 @@ from slacker import Slacker
 from datetime import datetime, timedelta
 import time
 import pdb
+import json
+from urlparse import parse_qs, urlparse
+
+
+
 class SNC():
     def __init__(self):
         self.news_data = []
@@ -15,9 +20,14 @@ class SNC():
         res = requests.get(link)
         soup = BeautifulSoup(res.content)
         try:
-            # title = soup.find('div',{'class':'article_info'}).find('h3',{'id':'articleTitle'}).text.encode('utf-8')
-            content = soup.find('div',{'id':'articleBody'}).find('div',{'id':'articleBodyContents'}).text.encode('utf-8').replace('\n','')
-            data = {'link': link, 'content': content}
+            query = parse_qs(urlparse(link).query, keep_blank_values=True)
+            aid = query.get('aid','')[0]
+
+            title = soup.find('div',{'class':'article_info'}).find('h3',{'id':'articleTitle'}).text.encode('utf-8')
+            content = soup.find('div',{'id':'articleBody'}).find('div',{'id':'articleBodyContents'}).text.encode('utf-8').replace('\n','').replace('\r','').replace('\t','')
+            pub_date = soup.find('div',{'class':'sponsor'}).find('span',{'class':'t11'}).text.encode('utf-8')
+
+            data = {'title': title, 'link': link, 'content': content, 'aid':aid, 'pub_date':pub_date}
 
             self.news_data.append(data)
         except:
@@ -26,9 +36,9 @@ class SNC():
     def get_politics(self):
         politics_url = 'http://news.naver.com/main/list.nhn?sid2=269&sid1=100&mid=shm&mode=LS2D&date=%s&page=%s'
         # today = datetime.now().strftime('%Y%m%d')
-        max_page = 30
-        numdays = 30
-        date_list = [datetime.now() - timedelta(days=x) for x in range(21, numdays)]
+        max_page = 60
+        numdays = 60
+        date_list = [datetime.now() - timedelta(days=x) for x in range(43, numdays)]
         for date in date_list:
             page = 0
             flag = True
@@ -39,6 +49,7 @@ class SNC():
 
                 if page > max_page:
                     flag = False
+                    continue
 
                 print '정치 | '+today + ' | ' +str(page)
                 res = requests.get(politics_url%(today,page))
@@ -56,12 +67,14 @@ class SNC():
                 except:
                     continue
 
-
-                if last_page != '다음' and int(last_page) < page:
+                if last_page == '이전':
+                    flag = False
+                elif last_page != '다음' and int(last_page) < page:
                     flag = False
 
             self.report_to_slack2(today)
-            self.content_save2(today)
+            # self.content_save2(today)
+            self.save_as_json(today)
 
     def get_economy(self):
         economy_url = 'http://news.naver.com/main/list.nhn?sid2=263&sid1=101&mid=shm&mode=LS2D&date=%s&page=%s'
@@ -118,17 +131,17 @@ class SNC():
                     flag = False
 
     def report_to_slack(self):
-        slack = Slacker('<SLACK_TOKEN>')
+        slack = Slacker('xoxb-79019096625-i4tW4KSVL6k33ZgfAVz1lnZK')
         slack.chat.post_message('#general', '네이버 뉴스 크롤링')
         slack.chat.post_message('#general', '수집한 뉴스 갯수: '+str(len(self.news_data)))
 
     def report_to_slack2(self, today):
-        slack = Slacker('<SLACK_TOKEN>')
+        slack = Slacker('xoxb-79019096625-i4tW4KSVL6k33ZgfAVz1lnZK')
         slack.chat.post_message('#general', '네이버 뉴스 크롤링: '+today)
         slack.chat.post_message('#general', '수집한 뉴스 갯수: '+str(len(self.news_data)))
 
     def fail_report(self):
-        slack = Slacker('<SLACK_TOKEN>')
+        slack = Slacker('xoxb-79019096625-i4tW4KSVL6k33ZgfAVz1lnZK')
         slack.chat.post_message('#general', '실패다 헤헤')
 
     def content_save(self):
@@ -142,15 +155,22 @@ class SNC():
                 news.write(data['content'].replace('\n',''))
         self.news_data = []
 
+    def save_as_json(self, today):
+        with open('./data/'+today+'.json', 'wb') as news:
+            for data in self.news_data:
+                data['date'] = today
+                news.write(json.dumps(data, ensure_ascii=False,encoding='utf8').encode('utf-8')+'\n')
+        self.news_data = []
+
     def processing(self):
-        try:
-            self.get_politics()
+        # try:
+        self.get_politics()
             # self.get_economy()
             # self.get_it()
-            self.content_save()
+            # self.content_save()
             # self.report_to_slack()
-        except:
-            self.fail_report()
+        # except:
+        #     self.fail_report()
 
 if __name__ == '__main__':
     snc = SNC()
